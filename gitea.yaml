@@ -11,25 +11,23 @@
   # For Reverse Proxy
 
     - name: Add a docker network for the proxy
-      become: yes
       docker_network:
         name: nginx-proxy
       tags: "container"
 
-    - name: Run jwilder/nginx-proxy
-      become: yes
+    - name: Deploy Reverse Proxy
       docker_container:
-        restart: yes
-        restart_policy: always
-        image: jwilder/nginx-proxy
-        state: started
-        name: proxy
+        restart_policy: on-failure
+        image: nginxproxy/nginx-proxy
+        name: rproxy
         networks:
           - name: nginx-proxy
+        env:
+          TRUST_DOWNSTREAM_PROXY: "false"
         volumes:
-          - /etc/nginx/certs
-          - /etc/nginx/vhost.d
-          - /usr/share/nginx/html
+          - html:/usr/share/nginx/html
+          - vhost.d:/etc/nginx/vhost.d
+          - certs:/etc/nginx/certs:ro
           - /var/run/docker.sock:/tmp/docker.sock:ro
         ports:
           - '80:80'
@@ -37,19 +35,21 @@
       tags: "container"
 
 
-    - name: Run jrcs/letsencrypt-nginx-proxy-companion
-      become: yes
+    - name: Deploy SSL
       docker_container:
-        restart: yes
-        restart_policy: always
-        image: jrcs/letsencrypt-nginx-proxy-companion
-        state: started
-        name: letsencrypt-nginx-proxy-companion
+        restart_policy: on-failure
+        image: nginxproxy/acme-companion
+        env:
+          NGINX_PROXY_CONTAINER: rproxy
+          DEFAULT_EMAIL: fleurvanbuijten@live.be
+        name: SSL
         networks:
-          - name: nginx-proxy
-        volumes_from:
-          - proxy
+          - name: nginx-proxy        
         volumes:
+          - html:/usr/share/nginx/html
+          - vhost.d:/etc/nginx/vhost.d
+          - certs:/etc/nginx/certs
+          - acme:/etc/acme.sh
           - /var/run/docker.sock:/var/run/docker.sock:ro
       tags: "container"
 
@@ -104,3 +104,34 @@
           - "/etc/localtime:/etc/localtime:ro"
         restart_policy: on-failure
       tags: "container"
+
+  # firewall 
+
+    - name: Enable and start firewalld service
+      service:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Allow HTTP (port 80/tcp) traffic
+      firewalld:
+        port: 80/tcp
+        permanent: true
+        state: enabled
+
+    - name: Allow HTTPS (port 443/tcp) traffic
+      firewalld:
+        port: 443/tcp
+        permanent: true
+        state: enabled
+
+    - name: Allow SSH traffic
+      firewalld:
+        port: 22/tcp
+        permanent: true
+        state: enabled
+
+    - name: Restart firewalld service
+      service:
+        name: firewalld
+        state: restarted
