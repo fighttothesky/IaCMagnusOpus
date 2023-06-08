@@ -8,6 +8,54 @@
 
    # Run ansible-playbook -K gitea.yaml to start this ansible script, -K to ask for the password
 
+  # For Reverse Proxy
+
+    - name: Add a docker network for the proxy
+      become: yes
+      docker_network:
+        name: nginx-proxy
+      tags: "container"
+
+    - name: Run jwilder/nginx-proxy
+      become: yes
+      docker_container:
+        restart: yes
+        restart_policy: always
+        image: jwilder/nginx-proxy
+        state: started
+        name: proxy
+        networks:
+          - name: nginx-proxy
+        volumes:
+          - /etc/nginx/certs
+          - /etc/nginx/vhost.d
+          - /usr/share/nginx/html
+          - /var/run/docker.sock:/tmp/docker.sock:ro
+        ports:
+          - '80:80'
+          - '443:443'
+      tags: "container"
+
+
+    - name: Run jrcs/letsencrypt-nginx-proxy-companion
+      become: yes
+      docker_container:
+        restart: yes
+        restart_policy: always
+        image: jrcs/letsencrypt-nginx-proxy-companion
+        state: started
+        name: letsencrypt-nginx-proxy-companion
+        networks:
+          - name: nginx-proxy
+        volumes_from:
+          - proxy
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock:ro
+      tags: "container"
+
+
+
+  # For Gitea server
     - name: Update package cache
       ansible.builtin.yum:
         update_cache: true
@@ -15,7 +63,7 @@
     - name: Deploy MySQL database
       community.docker.docker_container:
         name: MySQL
-        image: mysql:latest
+        image: mysql:8.0.33
         env: 
           MYSQL_ROOT_PASSWORD: uiopuiop
           MYSQL_USER: gitea
@@ -23,19 +71,15 @@
           MYSQL_DATABASE: gitea
         volumes:
           - "./mysql:/var/lib/mysql"
+        networks:
+          - name: nginx-proxy
         restart_policy: on-failure
-        ports:
-          - "3306:3306"
+      tags: "container"
     
     - name: Retrieve MySQL container IP
       docker_container_info:
         name: MySQL
       register: result
-
-    - name: Print ip from MySQL container
-      debug:
-        var: result.container.NetworkSettings.IPAddress
-      when: result.exists
     
     - name: Deploy gitea server
       community.docker.docker_container:
@@ -45,16 +89,18 @@
           USER_UID: "1000"
           USER_GID: "1000"
           GITEA__database__DB_TYPE: mysql
-          GITEA__database__HOST: "{{result.container.NetworkSettings.IPAddress}}:3306"
+          GITEA__database__HOST: "MySQL:3306"
           GITEA__database__NAME: gitea
           GITEA__database__USER: gitea
           GITEA__database__PASSWD: uiopuiop
+          VIRTUAL_HOST: school.stuff.ovh
+          VIRTUAL_PORT: "3000"
+          LETSENCRYPT_HOST: school.stuff.ovh
+        networks:
+          - name: nginx-proxy
         volumes:
           - "./gitea:/data"
           - "/etc/timezone:/etc/timezone:ro"
           - "/etc/localtime:/etc/localtime:ro"
-        ports:
-          - "3000:3000"
-          - "222:22"
-        
-
+        restart_policy: on-failure
+      tags: "container"
