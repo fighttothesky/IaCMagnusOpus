@@ -1,0 +1,2 @@
+# Gitea setup through ansible
+This Ansible script automates the installation and configuration of a Dockerized Gitea instance, backed by a MySQL database, and set up behind an NGINX reverse proxy with Let's Encrypt SSL certificates. The script is designed to work on Rocky Linux 8.
