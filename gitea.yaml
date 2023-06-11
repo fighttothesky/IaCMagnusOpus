@@ -11,8 +11,8 @@
     mysql_user: gitea
     mysql_database: gitea
     mysql_password: uiopuiop
-    virtual_host: school.stuff.ovh # Domain name here
-    letsencrypt_host: school.stuff.ovh # Domain name here
+    virtual_host: school1.stuff.ovh # Domain name here
+    letsencrypt_host: school1.stuff.ovh # Domain name here
 
   roles:
     - docker-role
@@ -66,10 +66,6 @@
 
 
   # For Gitea server
-    - name: Update package cache
-      ansible.builtin.yum:
-        update_cache: true
-
     - name: Deploy MySQL database
       community.docker.docker_container:
         name: MySQL
@@ -77,7 +73,7 @@
         env:
           MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
           MYSQL_USER: "{{ mysql_user }}"
-          MYSQL_PASSWORD: "{{ mysql_root_password }}"
+          MYSQL_PASSWORD: "{{ mysql_password }}"
           MYSQL_DATABASE: "{{ mysql_database }}"
         volumes:
           - "./mysql:/var/lib/mysql"
@@ -85,11 +81,6 @@
           - name: nginx-proxy
         restart_policy: on-failure
       tags: "container"
-
-    - name: Retrieve MySQL container IP
-      community.docker.docker_container_info:
-        name: MySQL
-      register: result
 
     - name: Deploy gitea server
       community.docker.docker_container:
