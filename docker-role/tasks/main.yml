@@ -1,61 +1,61 @@
 ---
 # tasks file for docker-role
-  - name: Update package cache
-    ansible.builtin.yum:
-      update_cache: true
+- name: Update package cache
+  ansible.builtin.yum:
+    update_cache: true
 
-  - name: Add signing key
-    ansible.builtin.rpm_key:
-      key: "https://download.docker.com/linux/centos/gpg"
-      state: present
+- name: Add signing key
+  ansible.builtin.rpm_key:
+    key: "https://download.docker.com/linux/centos/gpg"
+    state: present
 
-  - name: Add repository into repo.d list
-    ansible.builtin.yum_repository:
-      name: docker
-      description: docker repository
-      baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
-      enabled: true
-      gpgcheck: true
-      gpgkey: "https://download.docker.com/linux/centos/gpg"
+- name: Add repository into repo.d list
+  ansible.builtin.yum_repository:
+    name: docker
+    description: docker repository
+    baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
+    enabled: true
+    gpgcheck: true
+    gpgkey: "https://download.docker.com/linux/centos/gpg"
 
-  - name: Install Docker engine
-    ansible.builtin.yum:
-      name:
-        - docker-ce
-        - docker-ce-cli
-        - containerd.io
-        - docker-buildx-plugin
-        - docker-compose-plugin
-      state: present
-      update_cache: true
+- name: Install Docker engine
+  ansible.builtin.yum:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
 
-  - name: Start Docker
-    ansible.builtin.service:
-      name: "docker"
-      enabled: true
-      state: started
+- name: Start Docker
+  ansible.builtin.service:
+    name: "docker"
+    enabled: true
+    state: started
 
-  - name: Verify install
-    community.docker.docker_container:
-      name: HelloWorld
-      image: hello-world
-    become: true
+- name: Verify install
+  community.docker.docker_container:
+    name: HelloWorld
+    image: hello-world
+  become: true
 
-  - name: Install docker & docker-compose via pip
-    ansible.builtin.pip:
-      name:
-        - docker
-        - docker-compose
-    become: true    
+- name: Install docker & docker-compose via pip
+  ansible.builtin.pip:
+    name:
+      - docker
+      - docker-compose
+  become: true
 
-  - name: Create dokwerker user
-    ansible.builtin.user:
-      name: dokwerker
-      create_home: true
+- name: Create dokwerker user
+  ansible.builtin.user:
+    name: dokwerker
+    create_home: true
 
-  - name: Add dokwerker to docker group
-    ansible.builtin.user:
-      name: dokwerker
-      groups:
-        - docker
-      append: true
+- name: Add dokwerker to docker group
+  ansible.builtin.user:
+    name: dokwerker
+    groups:
+      - docker
+    append: true

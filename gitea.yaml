@@ -1,5 +1,5 @@
 ---
-- name: install gitea with sql database trough docker
+- name: Install gitea with sql database trough docker
   hosts: linux_machines
   become: true
   vars:
@@ -22,12 +22,12 @@
 
   # For Reverse Proxy
     - name: Add a docker network for the proxy
-      docker_network:
+      community.docker.docker_network:
         name: nginx-proxy
       tags: "container"
 
     - name: Deploy Reverse Proxy
-      docker_container:
+      community.docker.docker_container:
         restart_policy: on-failure
         image: nginxproxy/nginx-proxy
         name: rproxy
@@ -47,7 +47,7 @@
 
 
     - name: Deploy SSL
-      docker_container:
+      community.docker.docker_container:
         restart_policy: on-failure
         image: nginxproxy/acme-companion
         env:
@@ -55,7 +55,7 @@
           DEFAULT_EMAIL: "{{ default_email_ssl }}"
         name: SSL
         networks:
-          - name: nginx-proxy        
+          - name: nginx-proxy
         volumes:
           - html:/usr/share/nginx/html
           - vhost.d:/etc/nginx/vhost.d
@@ -63,7 +63,6 @@
           - acme:/etc/acme.sh
           - /var/run/docker.sock:/var/run/docker.sock:ro
       tags: "container"
-
 
 
   # For Gitea server
@@ -75,7 +74,7 @@
       community.docker.docker_container:
         name: MySQL
         image: mysql:8.0.33
-        env: 
+        env:
           MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
           MYSQL_USER: "{{ mysql_user }}"
           MYSQL_PASSWORD: "{{ mysql_root_password }}"
@@ -86,12 +85,12 @@
           - name: nginx-proxy
         restart_policy: on-failure
       tags: "container"
-    
+
     - name: Retrieve MySQL container IP
-      docker_container_info:
+      community.docker.docker_container_info:
         name: MySQL
       register: result
-    
+
     - name: Deploy gitea server
       community.docker.docker_container:
         name: gitea
@@ -116,32 +115,32 @@
         restart_policy: on-failure
       tags: "container"
 
-  # firewall 
+  # firewall
     - name: Enable and start firewalld service
-      service:
+      ansible.builtin.service:
         name: firewalld
         state: started
         enabled: true
 
     - name: Allow HTTP (port 80/tcp) traffic
-      firewalld:
+      ansible.posix.firewalld:
         port: 80/tcp
         permanent: true
         state: enabled
 
     - name: Allow HTTPS (port 443/tcp) traffic
-      firewalld:
+      ansible.posix.firewalld:
         port: 443/tcp
         permanent: true
         state: enabled
 
     - name: Allow SSH traffic
-      firewalld:
+      ansible.posix.firewalld:
         port: 22/tcp
         permanent: true
         state: enabled
 
     - name: Restart firewalld service
-      service:
+      ansible.builtin.service:
         name: firewalld
         state: restarted
